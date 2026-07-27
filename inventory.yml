@@ -1,0 +1,63 @@
+# Source of truth for what exists. Update this whenever a server is added/removed.
+servers:
+  - hostname: main-host
+    role: main-host
+    provider: contabo
+    plan: "Cloud VPS 8 (2026)"
+    ip: 169.58.77.127
+    location: EU
+    apps:
+      - alminhaaj
+      - FlashRide
+      - better-openclaw
+      - EventFlowAI
+      - autostudio
+      - openrevenue-bundle (convex, plunk, postiz, umami, workspace)
+    paas: coolify
+    backed_up: true
+
+  - hostname: neobank
+    role: neobank
+    provider: contabo
+    plan: "Cloud VPS 6 (2026)"
+    ip: 169.58.79.167
+    location: EU
+    apps:
+      - kong
+      - hydra
+      - logto
+      - steel
+      - api-auth-app
+    paas: none  # isolated, plain docker-compose, no PaaS by design
+    backed_up: true
+    notes: >
+      Kept off any shared PaaS deliberately — separate network/firewall from
+      everything else. See compliance note in hosting-recommendation.md.
+
+  - hostname: meet-sso-misc
+    role: meet-sso-misc
+    provider: hetzner
+    plan: CPX32 (4 vCPU / 8GB / 160GB)
+    ip: 2.28.13.102
+    location: Falkenstein
+    apps:
+      - keycloak (realm AlMinhaaj, RHSSO for alminhaaj)
+      - jitsi-meet
+      - "(future) clawexa"
+      - "(future) QueueFlowAI"
+    paas: dokploy
+    backed_up: true
+
+  - hostname: monitoring
+    role: monitoring
+    provider: contabo
+    plan: "Cloud VPS 4"
+    ip: PENDING_PURCHASE
+    location: EU
+    apps:
+      - uptime-kuma
+      - netdata-parent
+      - restic-backup-coordination (optional, backups run locally per-server too)
+    paas: none
+    backed_up: false
+    notes: "Blocked on checkout - needs a phone number for Contabo's required field."

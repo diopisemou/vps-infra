@@ -1,0 +1,70 @@
+# Self-hosted Jitsi Meet for alminhaaj's video conferencing (school meetings).
+# Official docker-jitsi-meet is normally cloned as its own repo with a .env; this is
+# a trimmed single-file version for Dokploy. For production, prefer the official
+# https://github.com/jitsi/docker-jitsi-meet repo and its full .env template.
+services:
+  web:
+    image: jitsi/web:stable
+    restart: unless-stopped
+    environment:
+      - PUBLIC_URL=https://meet.alminhaaj.info
+      - JICOFO_AUTH_USER=focus
+      - XMPP_DOMAIN=meet.jitsi
+      - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+      - XMPP_BOSH_URL_BASE=http://prosody:5280
+      - XMPP_GUEST_DOMAIN=guest.meet.jitsi
+      - XMPP_MUC_DOMAIN=muc.meet.jitsi
+    depends_on: [prosody, jicofo, jvb]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.jitsi.rule=Host(`meet.alminhaaj.info`)
+      - traefik.http.routers.jitsi.tls.certresolver=letsencrypt
+      - traefik.http.services.jitsi.loadbalancer.server.port=80
+
+  prosody:
+    image: jitsi/prosody:stable
+    restart: unless-stopped
+    environment:
+      - AUTH_TYPE=internal
+      - XMPP_DOMAIN=meet.jitsi
+      - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+      - XMPP_GUEST_DOMAIN=guest.meet.jitsi
+      - XMPP_MUC_DOMAIN=muc.meet.jitsi
+      - JICOFO_COMPONENT_SECRET=${JICOFO_COMPONENT_SECRET}
+      - JICOFO_AUTH_USER=focus
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD}
+      - JVB_AUTH_USER=jvb
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD}
+    volumes:
+      - jitsi_prosody_config:/config
+
+  jicofo:
+    image: jitsi/jicofo:stable
+    restart: unless-stopped
+    environment:
+      - XMPP_DOMAIN=meet.jitsi
+      - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+      - XMPP_MUC_DOMAIN=muc.meet.jitsi
+      - XMPP_SERVER=prosody
+      - JICOFO_COMPONENT_SECRET=${JICOFO_COMPONENT_SECRET}
+      - JICOFO_AUTH_USER=focus
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD}
+    depends_on: [prosody]
+
+  jvb:
+    image: jitsi/jvb:stable
+    restart: unless-stopped
+    ports:
+      - "10000:10000/udp"
+    environment:
+      - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+      - XMPP_SERVER=prosody
+      - JVB_AUTH_USER=jvb
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD}
+      - JVB_BREWERY_MUC=jvbbrewery
+      - PUBLIC_URL=https://meet.alminhaaj.info
+      - DOCKER_HOST_ADDRESS=${SERVER_PUBLIC_IP}
+    depends_on: [prosody]
+
+volumes:
+  jitsi_prosody_config:

@@ -1,0 +1,24 @@
+# Scaffold only - fill in real images/config for Kong, Hydra, Logto, Steel, api/auth.
+# This file intentionally ships empty-ish: the real service configs (client secrets,
+# DB DSNs, OAuth2 client registrations) live in your neobank project repo, not here.
+services:
+  kong:
+    image: kong:3.7
+    restart: unless-stopped
+    # environment / volumes: copy from your existing bidewpay.com kong config
+
+  hydra:
+    image: oryd/hydra:v2.2
+    restart: unless-stopped
+    # environment / volumes: copy from your existing bidewpay.com hydra config
+
+  logto:
+    image: svhd/logto:latest
+    restart: unless-stopped
+    # environment / volumes: copy from your existing bidewpay.com logto config
+
+  steel:
+    image: ghcr.io/steel-dev/steel-browser:latest
+    restart: unless-stopped
+
+  # api-auth-app: build: ../path-to-your-app  (add once you have the image/Dockerfile handy)

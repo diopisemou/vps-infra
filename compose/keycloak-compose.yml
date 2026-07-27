@@ -1,0 +1,37 @@
+# Keycloak (RHSSO) for alminhaaj. Deploy via Dokploy on meet-sso-misc.
+# Realm "AlMinhaaj" must be created/imported after first boot.
+services:
+  keycloak-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    restart: unless-stopped
+    command: start --optimized
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HOSTNAME: keycloak.alminhaaj.info
+      KC_PROXY: edge
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    depends_on:
+      - keycloak-db
+    labels:
+      # Dokploy/Traefik routing - adjust to match your Dokploy project's convention
+      - traefik.enable=true
+      - traefik.http.routers.keycloak.rule=Host(`keycloak.alminhaaj.info`)
+      - traefik.http.routers.keycloak.tls.certresolver=letsencrypt
+      - traefik.http.services.keycloak.loadbalancer.server.port=8080
+
+volumes:
+  keycloak_db_data:

@@ -1,0 +1,7 @@
+# Never commit secrets
+backup/r2.env
+**/*.env
+!**/*.env.example
+*.pem
+*.key
+!scripts/**/*.key.example
