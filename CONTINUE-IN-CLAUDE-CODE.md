@@ -15,24 +15,29 @@ independent backups to Cloudflare R2, decoupled from any single VPS provider. Se
 
 | Role | Provider | IP | Actually observed |
 |---|---|---|---|
-| main-host | Contabo VPS8 | 169.58.77.127 | **Coolify already installed** — Traefik on 443 (503), Coolify UI on 8000, 6001/6002 open. Bootstrap not run. |
-| neobank | Contabo VPS6 | 169.58.79.167 | Genuinely empty, nothing listening. Bootstrap not run. |
-| meet-sso-misc | Hetzner CPX32 | 2.28.13.102 | **Dokploy already installed and serving** on :3000 (HTTP 200), Traefik on 443 (404). Bootstrap not run. |
+| main-host | Contabo VPS8 | 169.58.77.127 | Bootstrapped. Coolify (pre-existing, installer skipped), 6 containers healthy, UI on 8000. |
+| neobank | Contabo VPS6 | 169.58.79.167 | Bootstrapped. Empty by design — compose template staged, needs real secrets. |
+| meet-sso-misc | Hetzner CPX32 | 2.28.13.102 | Bootstrapped. Dokploy (pre-existing, installer skipped) on :3000, 3 containers up. |
 | monitoring | Contabo VPS4 | 169.58.85.228 | Purchased and bootstrapped. Uptime Kuma healthy on :3001, monitors not yet added. |
 
 > ~~Correction:~~ the old file said meet-sso-misc was "rebuilt clean" and that no server
-> had anything on it. Both PaaS installs are already there. Anything that reconfigures
-> those boxes has to preserve the PaaS admin ports, because they are currently the only
-> reachable way in.
+> had anything on it. Both PaaS installs were already there, and the old bootstrap had in
+> fact already been run on both. Anything reconfiguring those boxes must preserve the PaaS
+> admin ports.
 
-All three have Bachir's SSH public key installed. Private key: `~/Desktop/vps-ssh-keys/bachir_vps_key`
+All four have Bachir's SSH public key installed. Private key: `~/Desktop/vps-ssh-keys/bachir_vps_key`
 (never commit). Both Contabo boxes also have a root password set for VNC console access;
 Hetzner's was emailed after the rebuild. **Console access is the fallback and is not
 affected by the port-22 problem below** — `PasswordAuthentication no` only applies to sshd.
 
-## The port-22 blocker — diagnosed, confirmed, not yet worked around
+## The port-22 blocker — diagnosed, currently bypassed by tethering
 
-Outbound from Bachir's Mac:
+**Status:** on Bachir's *home* network this is live. He is currently on an iPhone hotspot
+(gateway 172.20.10.1), where port 22 works, and everything below was done over direct SSH.
+Expect the block to return the moment he is back on home wifi. Tailscale is installed on
+all four hosts as the durable fix but is **not logged in yet**.
+
+Outbound from Bachir's Mac, on the home network:
 
 | Port | Result |
 |---|---|
@@ -50,8 +55,9 @@ Silence, macOS firewall) stays ruled out. It is the router/ISP.
 
 **Chosen workaround: Tailscale on every host.** SSH then runs over the tailnet instead of
 public port 22, which also gets SSH off the public internet entirely. Tailscale falls back
-to DERP relaying over 443 if UDP is blocked, so it works on this connection regardless.
-`common.sh` now installs it, and adds `ufw allow in on tailscale0`.
+to DERP relaying over 443 if UDP is blocked, so it works on that connection regardless.
+`common.sh` installs it and adds `ufw allow in on tailscale0`. **Still to do:** install
+Tailscale on the Mac, and run `tailscale up --hostname=<name>` on each of the four hosts.
 
 ## What changed in the scripts this session
 
@@ -62,9 +68,10 @@ Every one of these was a live bug that would have bitten on first run:
   which PaaS is present and keeps its ports open, plus trusts `tailscale0`.
 - **`neobank.sh` ran `ufw --force reset`**, wiping the tailnet rule `common.sh` had just
   added. Rules are additive now.
-- **Compose files were never actually copied.** Both role scripts resolved them via
-  `$BASH_SOURCE`, which is meaningless when the script is piped from `curl` — and the
-  failure was swallowed by `|| true`. Now fetched from `REPO_RAW_BASE`.
+- **Compose files resolved via `$BASH_SOURCE`**, which is meaningless when the script is
+  piped from `curl`, with the failure swallowed by `|| true`. (In practice the files were
+  already present on meet-sso-misc, so this had not yet bitten — but it would have on any
+  fresh host using the documented curl invocation.) Now fetched from `REPO_RAW_BASE`.
 - **`backup.sh` would fail entirely on a host with no stacks**: an unmatched
   `/opt/*/docker-compose.yml` glob got passed to restic literally. Also `[[ -f x ]] && source x`
   aborts under `set -e` when the file is absent, and missing R2 values built a malformed
@@ -74,6 +81,11 @@ Every one of these was a live bug that would have bitten on first run:
   copied it, and docker was installed *after* adding deploy to the `docker` group.
 - **`inventory.yml` claimed `backed_up: true` on all three servers.** No backups exist
   anywhere. That field now means "timer active AND restore verified" and is false.
+- **sshd hardening silently did nothing on all three Contabo boxes.** Their images ship
+  `/etc/ssh/sshd_config.d/50-cloud-init.conf` with `PasswordAuthentication yes`; sshd keeps
+  the *first* value it obtains and the `Include` sits at line 12, so the edit at line 66
+  never took effect. Password auth was live on three public IPs while the script reported
+  success. Now written as a `00-vps-infra.conf` drop-in and verified with `sshd -T`.
 
 ## Biggest remaining risk: the restic passphrase
 
@@ -85,11 +97,15 @@ filling in `r2.env`**, and use the same passphrase on every host.
 
 ## Repo layout
 
-Local uses proper subfolders (`scripts/`, `backup/`, `compose/`, `docs/`). GitHub
-`diopisemou/vps-infra` still has the old **flat** layout from the web-upload UI, and the
-two have unrelated git histories. The fixed scripts must be pushed before any server can
-fetch them, since `bootstrap.sh` pulls siblings from
+Subfolders (`scripts/`, `backup/`, `compose/`, `docs/`), on GitHub and locally — the old
+flat web-upload layout was replaced. `bootstrap.sh` pulls siblings from
 `raw.githubusercontent.com/diopisemou/vps-infra/main/scripts/roles/<role>.sh`.
+
+**`raw.githubusercontent.com` caches for 5 minutes** (`max-age=300`). Pushing a fix and
+immediately re-running bootstrap silently executes the OLD script — this happened once
+this session and produced a confusing result. Verify the served content before trusting a
+run, or pipe the local file over SSH instead:
+`ssh root@host bash -s -- <args> < scripts/foo.sh`.
 
 There is also a stray duplicate clone at `vps-infra/vps-infra/` — now gitignored, safe to
 delete once confirmed unneeded.
@@ -117,20 +133,20 @@ Roles: `common` (always runs first), `main-host`, `neobank`, `meet-sso-misc`, `m
 
 ## What's left, in order
 
-1. Push the fixed scripts to GitHub (needed before any server can fetch them).
-2. Install Tailscale on the Mac, log in, then paste the join command in each provider
-   console. **Do `neobank` first** — it is empty, so a mistake there costs nothing.
-3. Bootstrap all three servers over the tailnet with their roles.
-4. Save `RESTIC_PASSWORD` off-server, create the R2 API token, fill `/etc/vps-infra/r2.env`
-   on each host, run `backup/restic-setup.sh`.
-6. meet-sso-misc: import the Keycloak + Jitsi compose files in Dokploy, point DNS
+1. **Backups — the whole point of this repo, and still entirely undone.** Save
+   `RESTIC_PASSWORD` off-server first, create the Cloudflare R2 API token, fill
+   `/etc/vps-infra/r2.env` on each host, run `backup/restic-setup.sh`. Nothing is backed
+   up until this is done; restic is not even installed yet.
+2. Install Tailscale on the Mac and run `tailscale up --hostname=<name>` on each of the
+   four hosts, so access does not depend on being tethered.
+3. meet-sso-misc: import the Keycloak + Jitsi compose files in Dokploy, point DNS
    `keycloak.alminhaaj.info` / `meet.alminhaaj.info` at 2.28.13.102.
-7. main-host: Coolify apps for alminhaaj, FlashRide, better-openclaw, EventFlowAI,
+4. main-host: Coolify apps for alminhaaj, FlashRide, better-openclaw, EventFlowAI,
    autostudio, openrevenue bundle.
-8. neobank: fill real secrets/DSNs into `/opt/neobank/docker-compose.yml` from the
+5. neobank: fill real secrets/DSNs into `/opt/neobank/docker-compose.yml` from the
    existing bidewpay.com config.
-9. monitoring: add Uptime Kuma monitors for the other three hosts (box is bootstrapped).
-10. **Do the restore drill** — verify `docs/RESTORE.md` end to end against one server
+6. monitoring: add Uptime Kuma monitors for the other three hosts (box is bootstrapped).
+7. **Do the restore drill** — verify `docs/RESTORE.md` end to end against one server
     before trusting any of this. Until that passes, `backed_up` stays false.
 
 ## Rules
