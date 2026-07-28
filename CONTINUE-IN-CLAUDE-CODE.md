@@ -18,7 +18,7 @@ independent backups to Cloudflare R2, decoupled from any single VPS provider. Se
 | main-host | Contabo VPS8 | 169.58.77.127 | **Coolify already installed** — Traefik on 443 (503), Coolify UI on 8000, 6001/6002 open. Bootstrap not run. |
 | neobank | Contabo VPS6 | 169.58.79.167 | Genuinely empty, nothing listening. Bootstrap not run. |
 | meet-sso-misc | Hetzner CPX32 | 2.28.13.102 | **Dokploy already installed and serving** on :3000 (HTTP 200), Traefik on 443 (404). Bootstrap not run. |
-| monitoring | Contabo VPS4 | *(not purchased)* | Blocked at checkout — Contabo requires a phone number. |
+| monitoring | Contabo VPS4 | 169.58.85.228 | Purchased and bootstrapped. Uptime Kuma healthy on :3001, monitors not yet added. |
 
 > ~~Correction:~~ the old file said meet-sso-misc was "rebuilt clean" and that no server
 > had anything on it. Both PaaS installs are already there. Anything that reconfigures
@@ -94,6 +94,19 @@ fetch them, since `bootstrap.sh` pulls siblings from
 There is also a stray duplicate clone at `vps-infra/vps-infra/` — now gitignored, safe to
 delete once confirmed unneeded.
 
+## Hostnames
+
+All four hosts now carry their real names (`main-host`, `neobank`, `meet-sso-misc`,
+`monitoring`) instead of Contabo's `vmi34xxxxx` defaults. Use `scripts/set-hostname.sh`,
+not a bare `hostnamectl` — these images set `preserve_hostname: false`, so cloud-init
+resets the name on every boot unless a drop-in stops it. The name is what `backup.sh`
+uses as the restic tag and repo path, so a silent revert would split a server's backup
+history across two paths.
+
+`meet-sso-misc` runs Dokploy on Docker Swarm, where the node identity *is* the hostname.
+It was already named correctly; `set-hostname.sh` refuses to run on a swarm node anyway.
+Coolify was safe to rename — it points at `host.docker.internal`, not the OS hostname.
+
 ## Bootstrap usage
 
 ```
@@ -110,14 +123,13 @@ Roles: `common` (always runs first), `main-host`, `neobank`, `meet-sso-misc`, `m
 3. Bootstrap all three servers over the tailnet with their roles.
 4. Save `RESTIC_PASSWORD` off-server, create the R2 API token, fill `/etc/vps-infra/r2.env`
    on each host, run `backup/restic-setup.sh`.
-5. Purchase the Contabo VPS4 for monitoring (needs a phone number at checkout).
 6. meet-sso-misc: import the Keycloak + Jitsi compose files in Dokploy, point DNS
    `keycloak.alminhaaj.info` / `meet.alminhaaj.info` at 2.28.13.102.
 7. main-host: Coolify apps for alminhaaj, FlashRide, better-openclaw, EventFlowAI,
    autostudio, openrevenue bundle.
 8. neobank: fill real secrets/DSNs into `/opt/neobank/docker-compose.yml` from the
    existing bidewpay.com config.
-9. monitoring: bootstrap, add Uptime Kuma monitors for every host.
+9. monitoring: add Uptime Kuma monitors for the other three hosts (box is bootstrapped).
 10. **Do the restore drill** — verify `docs/RESTORE.md` end to end against one server
     before trusting any of this. Until that passes, `backed_up` stays false.
 

@@ -83,7 +83,7 @@ servers:
     role: monitoring
     provider: contabo
     plan: "Cloud VPS 4"
-    ip: PENDING_PURCHASE
+    ip: 169.58.85.228
     location: EU
     apps:
       - uptime-kuma
@@ -91,7 +91,15 @@ servers:
       - restic-backup-coordination (optional, backups run locally per-server too)
     paas: none
     backed_up: false
-    notes: "Blocked on checkout - needs a phone number for Contabo's required field."
+    observed_2026_07_28:
+      bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
+      ssh: key-only (password auth off, verified with sshd -T)
+      tailscale: installed, NOT logged in
+      listening: [3001 (uptime-kuma)]
+      note: >
+        Purchased and provisioned. Uptime Kuma was already running before this
+        bootstrap; the idempotent path kept the existing container. Monitors for
+        the other three hosts still need adding in the UI.
 
 # Network constraint that shapes how all of the above is managed.
 network:
@@ -109,8 +117,23 @@ network:
     network, not of the servers - expect it to return there. Tailscale is
     installed everywhere as durable insurance but is not logged in yet.
 
+# Hostnames were the provider defaults (vmi34xxxxx) until 2026-07-28; renamed with
+# scripts/set-hostname.sh to match the `hostname:` field above. This matters because
+# backup.sh uses $(hostname) as the restic tag AND repo path.
+#
 # Gotchas worth remembering
 gotchas:
+  - >
+    Contabo images ship preserve_hostname: false, so cloud-init's update_hostname
+    module rewrites the hostname back to the provider default on every boot. A
+    plain `hostnamectl set-hostname` looks like it worked and reverts at the next
+    reboot. scripts/set-hostname.sh writes a cloud.cfg.d drop-in to prevent that.
+  - >
+    Coolify does NOT reference the OS hostname - its servers table points at
+    host.docker.internal - so main-host was safe to rename. Dokploy DOES run on
+    Docker Swarm, where the node identity is the hostname; set-hostname.sh refuses
+    to run on a swarm node for that reason. meet-sso-misc was already named
+    correctly, so it never needed renaming.
   - >
     Contabo images ship /etc/ssh/sshd_config.d/50-cloud-init.conf with
     PasswordAuthentication yes. sshd keeps the FIRST value it obtains and the
