@@ -1,4 +1,8 @@
 # Source of truth for what exists. Update this whenever a server is added/removed.
+#
+# `backed_up` means "restic timer is active AND a restore has been verified".
+# It is false everywhere until that is actually true - do not flip it optimistically.
+# Observed state below was verified by port-probing from Bachir's Mac on 2026-07-28.
 servers:
   - hostname: main-host
     role: main-host
@@ -14,7 +18,15 @@ servers:
       - autostudio
       - openrevenue-bundle (convex, plunk, postiz, umami, workspace)
     paas: coolify
-    backed_up: true
+    backed_up: false
+    observed_2026_07_28:
+      bootstrap_run: false
+      # Coolify is ALREADY installed here - not the clean box the old handoff claimed.
+      listening: [443 (traefik, 503), 8000 (coolify ui), 6001, 6002]
+      note: >
+        Traefik answers on 443 with its default cert and a 503, i.e. Coolify is up
+        but has no app routed yet. common.sh must keep 8000/6001/6002 open or the
+        Coolify UI becomes unreachable.
 
   - hostname: neobank
     role: neobank
@@ -29,7 +41,11 @@ servers:
       - steel
       - api-auth-app
     paas: none  # isolated, plain docker-compose, no PaaS by design
-    backed_up: true
+    backed_up: false
+    observed_2026_07_28:
+      bootstrap_run: false
+      listening: []
+      note: "Genuinely untouched - nothing answering on 22/80/443/3000/8000. Safe to bootstrap first."
     notes: >
       Kept off any shared PaaS deliberately — separate network/firewall from
       everything else. See compliance note in hosting-recommendation.md.
@@ -46,7 +62,14 @@ servers:
       - "(future) clawexa"
       - "(future) QueueFlowAI"
     paas: dokploy
-    backed_up: true
+    backed_up: false
+    observed_2026_07_28:
+      bootstrap_run: false
+      # Dokploy is ALREADY installed and serving. The old handoff said "rebuilt clean".
+      listening: [443 (traefik, 404), 3000 (dokploy ui, HTTP 200)]
+      note: >
+        Port 3000 is currently the only working way into this box, since outbound
+        :22 is blocked from home. common.sh must keep 3000 open.
 
   - hostname: monitoring
     role: monitoring
@@ -61,3 +84,14 @@ servers:
     paas: none
     backed_up: false
     notes: "Blocked on checkout - needs a phone number for Contabo's required field."
+
+# Network constraint that shapes how all of the above is managed.
+network:
+  home_egress_blocked: [22, 80, 53]
+  home_egress_allowed: [443, 3000, 8000, 6001, 6002]
+  diagnosis: >
+    Verified 2026-07-28 from Bachir's Mac, with the Claude Code sandbox both on and
+    off (identical results). github.com:22 and example.com:80 also time out, so this
+    is not server-side and not a sandbox artifact - it is the router/ISP applying a
+    standard residential anti-abuse block on low ports. High ports are unaffected.
+  workaround: tailscale on every host; SSH runs over the tailnet instead of public :22

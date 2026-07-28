@@ -10,19 +10,19 @@ if [[ -z "$ROLE" ]]; then
   exit 1
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_RAW_BASE="${REPO_RAW_BASE:-}"  # set if piping from curl and role scripts aren't local yet
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
+
+# Role scripts need this to fetch siblings (compose files, etc.) when this script
+# was piped in from curl and there is no local checkout to resolve paths against.
+export REPO_RAW_BASE="${REPO_RAW_BASE:-https://raw.githubusercontent.com/diopisemou/vps-infra/main}"
 
 fetch_role() {
   local name="$1"
   local local_path="$SCRIPT_DIR/roles/${name}.sh"
-  if [[ -f "$local_path" ]]; then
+  if [[ -n "$SCRIPT_DIR" && -f "$local_path" ]]; then
     bash "$local_path"
-  elif [[ -n "$REPO_RAW_BASE" ]]; then
-    curl -fsSL "$REPO_RAW_BASE/scripts/roles/${name}.sh" | bash
   else
-    echo "Cannot find role script for '$name' locally and REPO_RAW_BASE is not set." >&2
-    exit 1
+    curl -fsSL "$REPO_RAW_BASE/scripts/roles/${name}.sh" | bash
   fi
 }
 

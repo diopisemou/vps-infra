@@ -1,3 +1,7 @@
+# Stray duplicate clone of this same repo, left over from an earlier session.
+# Harmless but redundant - safe to delete once you've confirmed you don't need it.
+/vps-infra/
+
 # Never commit secrets
 backup/r2.env
 **/*.env

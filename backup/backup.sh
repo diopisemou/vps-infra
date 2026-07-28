@@ -4,8 +4,21 @@ set -euo pipefail
 
 ENV_FILE="/etc/vps-infra/backup.env"
 R2_ENV_FILE="/etc/vps-infra/r2.env"
-[[ -f "$ENV_FILE" ]] && source "$ENV_FILE"
-[[ -f "$R2_ENV_FILE" ]] && source "$R2_ENV_FILE"
+# NB: plain '[[ -f x ]] && source x' would abort the whole script under `set -e`
+# when the file is absent, because the failed test becomes the list's exit status.
+if [[ -f "$ENV_FILE" ]]; then source "$ENV_FILE"; fi
+if [[ -f "$R2_ENV_FILE" ]]; then source "$R2_ENV_FILE"; fi
+
+# Fail loudly and specifically rather than building a malformed repo URL.
+missing=()
+for v in R2_ACCOUNT_ID R2_BUCKET R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY RESTIC_PASSWORD; do
+  [[ -n "${!v:-}" ]] || missing+=("$v")
+done
+if (( ${#missing[@]} )); then
+  echo "!! Missing required setting(s): ${missing[*]}" >&2
+  echo "!! Fill them into $R2_ENV_FILE (template: backup/r2.env.example). Aborting." >&2
+  exit 1
+fi
 
 HOSTNAME_TAG="${HOSTNAME_TAG:-$(hostname)}"
 export RESTIC_REPOSITORY="s3:https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}/${HOSTNAME_TAG}"
@@ -44,11 +57,15 @@ echo "-- init restic repo if needed --"
 restic snapshots >/dev/null 2>&1 || restic init
 
 echo "-- backing up: dumps, volume snapshots, compose files, /etc/vps-infra --"
+# An unmatched /opt/*/docker-compose.yml glob would be passed through literally and
+# make restic error out, failing the whole backup on a host that has no stacks yet.
+TARGETS=("$STAGE/dumps" "$STAGE/volumes" /etc/vps-infra)
+shopt -s nullglob
+for f in /opt/*/docker-compose.yml; do TARGETS+=("$f"); done
+shopt -u nullglob
+
 restic backup \
-  "$STAGE/dumps" \
-  "$STAGE/volumes" \
-  /opt/*/docker-compose.yml \
-  /etc/vps-infra \
+  "${TARGETS[@]}" \
   --tag "$HOSTNAME_TAG" \
   --host "$HOSTNAME_TAG" 2>&1
 
