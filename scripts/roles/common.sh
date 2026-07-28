@@ -106,9 +106,39 @@ chmod 600 /home/deploy/.ssh/authorized_keys
 
 echo "-- sshd: disable password auth (key-only) --"
 # Provider VNC/console login is unaffected by this - that stays as the fallback.
+#
+# Editing /etc/ssh/sshd_config alone is NOT enough. Cloud images ship
+# /etc/ssh/sshd_config.d/50-cloud-init.conf with "PasswordAuthentication yes", and
+# because sshd takes the FIRST value it sees and the Include sits near the top of
+# sshd_config, that drop-in silently wins over anything written further down.
+# Contabo's images do this; Hetzner's do not. So we write our own drop-in named to
+# sort ahead of theirs, and let it be the first-obtained value.
 sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
 sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
-sshd -t && { systemctl reload sshd || systemctl reload ssh; }
+
+if grep -q '^Include /etc/ssh/sshd_config.d/' /etc/ssh/sshd_config; then
+  mkdir -p /etc/ssh/sshd_config.d
+  cat > /etc/ssh/sshd_config.d/00-vps-infra.conf << 'EOF'
+# Managed by vps-infra. Named 00- so it is read before any cloud-init drop-in;
+# sshd keeps the first value it obtains for each keyword.
+PasswordAuthentication no
+PermitRootLogin prohibit-password
+KbdInteractiveAuthentication no
+EOF
+  chmod 644 /etc/ssh/sshd_config.d/00-vps-infra.conf
+fi
+
+# Ubuntu 24.04 names the unit ssh.service; older ones use sshd.service.
+sshd -t || { echo "!! sshd config invalid, NOT reloading" >&2; exit 1; }
+systemctl reload ssh 2>/dev/null || systemctl reload sshd
+
+# Verify intent actually took effect rather than trusting the edit.
+eff_pw="$(sshd -T 2>/dev/null | awk '/^passwordauthentication/{print $2}')"
+if [[ "$eff_pw" == "no" ]]; then
+  echo "   verified: password auth is off"
+else
+  echo "!! password auth is still '$eff_pw' after reload - check /etc/ssh/sshd_config.d/" >&2
+fi
 
 echo "-- vps-infra state dir --"
 mkdir -p /etc/vps-infra /opt/vps-infra
