@@ -20,7 +20,7 @@ for f in keycloak-compose.yml jitsi-compose.yml; do
   fi
 done
 
-IP="$(curl -fsS --max-time 5 ifconfig.me || hostname -I | awk '{print $1}')"
+IP="$(curl -4 -fsS --max-time 5 ifconfig.me || hostname -I | awk '{print $1}')"
 echo "meet-sso-misc.sh done. Log into Dokploy at http://${IP}:3000, then import"
 echo "  /opt/vps-infra/meet-sso/keycloak-compose.yml (realm: AlMinhaaj)"
 echo "  /opt/vps-infra/meet-sso/jitsi-compose.yml"

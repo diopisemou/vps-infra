@@ -20,13 +20,14 @@ servers:
     paas: coolify
     backed_up: false
     observed_2026_07_28:
-      bootstrap_run: false
-      # Coolify is ALREADY installed here - not the clean box the old handoff claimed.
-      listening: [443 (traefik, 503), 8000 (coolify ui), 6001, 6002]
+      bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
+      ssh: key-only (password auth off, verified with sshd -T)
+      tailscale: installed, NOT logged in
+      listening: [443 (traefik), 8000 (coolify ui), 6001, 6002]
       note: >
-        Traefik answers on 443 with its default cert and a 503, i.e. Coolify is up
-        but has no app routed yet. common.sh must keep 8000/6001/6002 open or the
-        Coolify UI becomes unreachable.
+        Coolify was already installed before this bootstrap; the installer was
+        skipped. All 6 coolify containers stayed healthy through the ufw change.
+        8000/6001/6002 are held open explicitly - closing them loses the UI.
 
   - hostname: neobank
     role: neobank
@@ -43,9 +44,14 @@ servers:
     paas: none  # isolated, plain docker-compose, no PaaS by design
     backed_up: false
     observed_2026_07_28:
-      bootstrap_run: false
+      bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
+      ssh: key-only (password auth off, verified with sshd -T)
+      tailscale: installed, NOT logged in
       listening: []
-      note: "Genuinely untouched - nothing answering on 22/80/443/3000/8000. Safe to bootstrap first."
+      note: >
+        Was the empty box, so it was bootstrapped first as the safe test target.
+        Docker + compose template staged at /opt/neobank/docker-compose.yml,
+        which still needs real secrets before 'docker compose up -d'.
     notes: >
       Kept off any shared PaaS deliberately — separate network/firewall from
       everything else. See compliance note in hosting-recommendation.md.
@@ -64,12 +70,14 @@ servers:
     paas: dokploy
     backed_up: false
     observed_2026_07_28:
-      bootstrap_run: false
-      # Dokploy is ALREADY installed and serving. The old handoff said "rebuilt clean".
-      listening: [443 (traefik, 404), 3000 (dokploy ui, HTTP 200)]
+      bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
+      ssh: key-only (password auth off - this box had no cloud-init drop-in)
+      tailscale: installed, NOT logged in
+      listening: [443 (traefik), 3000 (dokploy ui)]
       note: >
-        Port 3000 is currently the only working way into this box, since outbound
-        :22 is blocked from home. common.sh must keep 3000 open.
+        Dokploy was already installed; installer skipped. All 3 containers stayed
+        up through the ufw change. 3000 is held open explicitly. Keycloak/Jitsi
+        compose files are staged at /opt/vps-infra/meet-sso/ but NOT yet imported.
 
   - hostname: monitoring
     role: monitoring
@@ -95,3 +103,20 @@ network:
     is not server-side and not a sandbox artifact - it is the router/ISP applying a
     standard residential anti-abuse block on low ports. High ports are unaffected.
   workaround: tailscale on every host; SSH runs over the tailnet instead of public :22
+  update_2026_07_28: >
+    Bachir switched networks and port 22 now works, so all three servers were
+    bootstrapped over direct SSH. The block above is a property of his HOME
+    network, not of the servers - expect it to return there. Tailscale is
+    installed everywhere as durable insurance but is not logged in yet.
+
+# Gotchas worth remembering
+gotchas:
+  - >
+    Contabo images ship /etc/ssh/sshd_config.d/50-cloud-init.conf with
+    PasswordAuthentication yes. sshd keeps the FIRST value it obtains and the
+    Include sits at line 12, so editing sshd_config directly does nothing. We
+    write 00-vps-infra.conf to win on sort order. Hetzner images have no drop-in.
+  - >
+    raw.githubusercontent.com caches for 5 minutes (max-age=300). Pushing a fix
+    and immediately re-running bootstrap will silently execute the OLD script.
+    Check the content is live before trusting a run.

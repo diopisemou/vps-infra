@@ -6,4 +6,7 @@ if [[ -d /data/coolify ]]; then
 else
   curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
 fi
-echo "main-host.sh done. Log into Coolify at https://$(curl -s ifconfig.me):8000 to finish setup and add your apps."
+# -4: without it ifconfig.me may answer with the IPv6 address, which produces a
+# malformed URL when a :port is appended to an unbracketed v6 literal.
+IP="$(curl -4 -fsS --max-time 5 ifconfig.me || hostname -I | awk '{print $1}')"
+echo "main-host.sh done. Log into Coolify at http://${IP}:8000 to finish setup and add your apps."
