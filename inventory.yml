@@ -155,6 +155,25 @@ backups:
       (changes the passphrase without re-encrypting the data).
     - "No restore drill has been done. Until it has, treat backups as unproven."
 
+# Monitoring - activated 2026-07-30
+monitoring_stack:
+  uptime_kuma: "http://169.58.85.228:3001  (v1.23.17)"
+  monitors: 17 active, all UP
+  per_host: [ping, ssh port 22, backup heartbeat (push)]
+  extra: [main-host coolify-ui :8000, meet-sso-misc dokploy-ui :3000]
+  backup_heartbeat: >
+    backup.sh pings a Kuma push monitor on success. Interval is 90000s (25h), so a
+    daily backup that stops running flips the monitor DOWN rather than failing
+    silently. Verified end to end: all five hosts ran a real backup and Kuma
+    recorded OK.
+  provision: scripts/kuma-provision.py (idempotent, matched by monitor name)
+  open_risks:
+    - >
+      Kuma is served over PLAIN HTTP on a public port. The admin password and the
+      push tokens cross the internet in cleartext, and meet-sso-misc pings it from
+      Hetzner to Contabo. Put it behind TLS, or restrict 3001 to the tailnet once
+      Tailscale is logged in, and rotate the Kuma password afterwards.
+
 # Network constraint that shapes how all of the above is managed.
 network:
   home_egress_blocked: [22, 80, 53]
