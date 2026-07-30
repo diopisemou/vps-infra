@@ -74,4 +74,14 @@ restic forget --host "$HOSTNAME_TAG" \
   --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
 
 rm -rf "$STAGE"
+
+# Heartbeat. An Uptime Kuma "Push" monitor goes DOWN when this stops arriving, so a
+# backup that quietly stops working becomes visible instead of being discovered at
+# restore time. Only pinged on success - reaching here means restic exited 0.
+if [[ -n "${UPTIME_KUMA_PUSH_URL:-}" ]]; then
+  curl -fsS --max-time 15 "${UPTIME_KUMA_PUSH_URL}?status=up&msg=OK" >/dev/null 2>&1 \
+    && echo "-- pinged uptime-kuma heartbeat --" \
+    || echo "  ! heartbeat ping failed (backup itself succeeded)"
+fi
+
 echo "backup.sh done on $HOSTNAME_TAG at $(date -Is)"
