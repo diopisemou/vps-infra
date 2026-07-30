@@ -45,6 +45,50 @@ fi
 if [[ -f /etc/vps-infra/r2.env ]]; then
   chown root:root /etc/vps-infra/r2.env
   chmod 600 /etc/vps-infra/r2.env
+
+  # backup.sh sources this file, so it has to be valid shell. Hand-pasted values
+  # routinely pick up a leading or trailing space ("KEY= value"), which bash reads
+  # as an empty assignment followed by a COMMAND - it then tries to execute the
+  # credential and prints it to the journal. Normalise to single-quoted values,
+  # stripping only surrounding whitespace, so the content itself is preserved.
+  if [[ ! -f /etc/vps-infra/r2.env.orig ]]; then
+    cp -p /etc/vps-infra/r2.env /etc/vps-infra/r2.env.orig
+    chmod 600 /etc/vps-infra/r2.env.orig
+  fi
+  python3 - << 'PYEOF'
+import re, os
+src = "/etc/vps-infra/r2.env"
+out = []
+changed = False
+for line in open(src).read().splitlines():
+    m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*)=(.*)$', line)
+    if not m:
+        out.append(line)
+        continue
+    key, val = m.group(1), m.group(2)
+    stripped = val.strip()
+    # drop one layer of existing quoting before re-quoting
+    if len(stripped) >= 2 and stripped[0] == stripped[-1] and stripped[0] in "\"'":
+        stripped = stripped[1:-1]
+    if stripped != val:
+        changed = True
+    esc = stripped.replace("'", "'\\''")
+    out.append(f"{key}='{esc}'")
+fd = os.open(src + ".tmp", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+with os.fdopen(fd, "w") as f:
+    f.write("\n".join(out) + "\n")
+os.replace(src + ".tmp", src)
+print("   r2.env normalised (values re-quoted)" if changed else "   r2.env already well-formed")
+PYEOF
+  chown root:root /etc/vps-infra/r2.env
+  chmod 600 /etc/vps-infra/r2.env
+
+  # Prove it actually parses, in a subshell, before we trust it.
+  if ! ( set -e; . /etc/vps-infra/r2.env ) >/dev/null 2>&1; then
+    echo "!! /etc/vps-infra/r2.env still does not parse as shell. Aborting." >&2
+    exit 1
+  fi
+
   missing=()
   for v in R2_ACCOUNT_ID R2_BUCKET R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY RESTIC_PASSWORD; do
     val="$(grep -E "^${v}=" /etc/vps-infra/r2.env | head -1 | cut -d= -f2- || true)"
