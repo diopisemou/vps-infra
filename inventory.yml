@@ -18,7 +18,7 @@ servers:
       - autostudio
       - openrevenue-bundle (convex, plunk, postiz, umami, workspace)
     paas: coolify
-    backed_up: partial   # timer active + first snapshot verified; RESTORE DRILL STILL PENDING
+    backed_up: true      # timer active, snapshot verified, restore drill passed 2026-07-30
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
       ssh: key-only (password auth off, verified with sshd -T)
@@ -42,7 +42,7 @@ servers:
       - steel
       - api-auth-app
     paas: none  # isolated, plain docker-compose, no PaaS by design
-    backed_up: partial   # timer active + first snapshot verified; RESTORE DRILL STILL PENDING
+    backed_up: true      # timer active, snapshot verified, restore drill passed 2026-07-30
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
       ssh: key-only (password auth off, verified with sshd -T)
@@ -68,7 +68,7 @@ servers:
       - "(future) clawexa"
       - "(future) QueueFlowAI"
     paas: dokploy
-    backed_up: partial   # timer active + first snapshot verified; RESTORE DRILL STILL PENDING
+    backed_up: true      # timer active, snapshot verified, restore drill passed 2026-07-30
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
       ssh: key-only (password auth off - this box had no cloud-init drop-in)
@@ -90,7 +90,7 @@ servers:
       - netdata-parent
       - restic-backup-coordination (optional, backups run locally per-server too)
     paas: none
-    backed_up: partial   # timer active + first snapshot verified; RESTORE DRILL STILL PENDING
+    backed_up: true      # timer active, snapshot verified, restore drill passed 2026-07-30
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
       ssh: key-only (password auth off, verified with sshd -T)
@@ -153,7 +153,25 @@ backups:
       RESTIC_PASSWORD is 10 characters. It is the only thing protecting every
       backup at rest. Consider a longer one via 'restic key add' + 'key remove'
       (changes the passphrase without re-encrypting the data).
-    - "No restore drill has been done. Until it has, treat backups as unproven."
+  restore_drill:
+    date: 2026-07-30
+    method: >
+      main-host's latest snapshot restored onto spare-01 with scripts/restore-drill.sh -
+      a genuine cross-host restore, which is the case that matters (the original box
+      is gone). 10/10 checks passed.
+    proved:
+      - repo opens from a DIFFERENT host using the shared passphrase
+      - restic check --read-data-subset=5% found no errors
+      - coolify-db.sql is a complete pg_dumpall (64 tables, matches live count of 64)
+      - both docker volume tarballs are valid gzip and non-empty
+      - >
+        the restored Coolify APP_KEY hashes identically to the live one
+        (417c6c7a7d60). This is the check that matters most: a restored .env with
+        a different key would pass every other test and still leave every secret
+        in coolify-db undecryptable.
+    caveat: >
+      Proves the DATA comes back. Does not prove a full rebuild - restoring into a
+      running Coolify and having it serve apps again is a separate exercise.
 
 # Monitoring - activated 2026-07-30
 monitoring_stack:
