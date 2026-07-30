@@ -119,10 +119,16 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 ExecStart=/opt/vps-infra/backup.sh
+# systemd services get no HOME, so restic finds nowhere to put its cache and runs
+# cacheless - it then re-reads every pack's metadata on each run, which is slow and
+# costs R2 class-B operations. Give it an explicit cache dir.
+Environment=RESTIC_CACHE_DIR=/var/cache/restic
 # Backups are IO-heavy and must never starve the apps sharing this box.
 Nice=10
 IOSchedulingClass=idle
 EOF
+
+install -d -m 0700 -o root -g root /var/cache/restic
 
 cat > /etc/systemd/system/restic-backup.timer << EOF
 [Unit]
