@@ -56,13 +56,36 @@ done
 echo "-- init restic repo if needed --"
 restic snapshots >/dev/null 2>&1 || restic init
 
-echo "-- backing up: dumps, volume snapshots, compose files, /etc/vps-infra --"
+echo "-- assembling backup targets --"
 # An unmatched /opt/*/docker-compose.yml glob would be passed through literally and
 # make restic error out, failing the whole backup on a host that has no stacks yet.
 TARGETS=("$STAGE/dumps" "$STAGE/volumes" /etc/vps-infra)
+
+# PaaS control-plane state. This is NOT in any docker volume, and without it a
+# restore is far less useful than it looks:
+#   /data/coolify/source/.env holds Coolify's APP_KEY, which encrypts the secrets
+#   stored in coolify-db - restore the dump without it and the credentials in it
+#   cannot be decrypted. It also holds the deploy SSH keys and app definitions.
+#   /etc/dokploy holds the equivalent for Dokploy.
+for p in /data/coolify /etc/dokploy /opt/vps-infra; do
+  [[ -d "$p" ]] && { TARGETS+=("$p"); echo "   + $p"; }
+done
+
 shopt -s nullglob
-for f in /opt/*/docker-compose.yml; do TARGETS+=("$f"); done
+for f in /opt/*/docker-compose.yml; do TARGETS+=("$f"); echo "   + $f"; done
 shopt -u nullglob
+
+# Host-specific extras, one path per line (globs allowed, # for comments).
+INCLUDE_FILE=/etc/vps-infra/backup-include.conf
+if [[ -f "$INCLUDE_FILE" ]]; then
+  while IFS= read -r line; do
+    line="${line%%#*}"; line="$(echo "$line" | xargs || true)"
+    [[ -z "$line" ]] && continue
+    shopt -s nullglob
+    for m in $line; do TARGETS+=("$m"); echo "   + $m (from backup-include.conf)"; done
+    shopt -u nullglob
+  done < "$INCLUDE_FILE"
+fi
 
 restic backup \
   "${TARGETS[@]}" \

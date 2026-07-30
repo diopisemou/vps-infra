@@ -1,0 +1,16 @@
+# Optional. Copy to /etc/vps-infra/backup-include.conf on a host to back up paths
+# beyond the defaults. One path per line, globs allowed, # starts a comment.
+#
+# Already included automatically, do NOT list them again:
+#   /etc/vps-infra              (config + credentials)
+#   /data/coolify               (Coolify control plane, incl. APP_KEY + deploy keys)
+#   /etc/dokploy                (Dokploy control plane)
+#   /opt/vps-infra              (staged compose files)
+#   /opt/*/docker-compose.yml   (per-stack compose)
+#   every named docker volume, tarred
+#   pg_dumpall / mysqldump of every running database container
+#
+# Examples:
+# /srv/uploads
+# /etc/letsencrypt
+# /opt/neobank/secrets/*.json
