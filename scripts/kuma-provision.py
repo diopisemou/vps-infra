@@ -14,6 +14,7 @@ Idempotent: monitors are matched by name, so re-running updates rather than
 duplicating. At the end it prints the push URLs for the backup heartbeat monitors -
 paste those back and they get wired into /etc/vps-infra/backup.env on each host.
 """
+import inspect
 import sys
 from getpass import getpass
 
@@ -21,6 +22,24 @@ try:
     from uptime_kuma_api import UptimeKumaApi, MonitorType
 except ImportError:
     sys.exit("Missing dependency. Run:  pip3 install uptime-kuma-api")
+
+# uptime-kuma-api renames fields between versions (e.g. retries -> maxretries).
+# Check every keyword up front, so a typo fails before anything is created rather
+# than halfway through the fleet.
+_VALID_KEYS = {
+    p for p in inspect.signature(UptimeKumaApi._build_monitor_data).parameters
+    if p != "self"
+}
+
+
+def check_keys(**kw):
+    bad = set(kw) - _VALID_KEYS
+    if bad:
+        sys.exit(
+            f"Unsupported monitor field(s) for uptime-kuma-api here: {sorted(bad)}\n"
+            f"Valid fields include: {sorted(k for k in _VALID_KEYS if len(k) < 20)}"
+        )
+    return kw
 
 KUMA_URL = "http://169.58.85.228:3001"
 
@@ -66,28 +85,30 @@ def main():
     for host, (ip, https) in HOSTS.items():
         print(f"\n{host} ({ip})")
 
-        upsert(api, existing, type=MonitorType.PING, name=f"{host} ping",
-               hostname=ip, interval=60, retries=2)
+        upsert(api, existing, **check_keys(
+            type=MonitorType.PING, name=f"{host} ping",
+            hostname=ip, interval=60, maxretries=2))
 
-        upsert(api, existing, type=MonitorType.PORT, name=f"{host} ssh",
-               hostname=ip, port=22, interval=300, retries=2)
+        upsert(api, existing, **check_keys(
+            type=MonitorType.PORT, name=f"{host} ssh",
+            hostname=ip, port=22, interval=300, maxretries=2))
 
         for label, url in https:
-            upsert(api, existing, type=MonitorType.HTTP, name=f"{host} {label}",
-                   url=url, interval=120, retries=2,
-                   accepted_statuscodes=["200-299", "300-399"])
+            upsert(api, existing, **check_keys(
+                type=MonitorType.HTTP, name=f"{host} {label}",
+                url=url, interval=120, maxretries=2,
+                accepted_statuscodes=["200-299", "300-399"]))
 
         # Push monitor: backup.sh pings this on success. No ping for 25h => DOWN.
         name = f"{host} backup"
-        if name in existing:
-            mid = existing[name]
-            api.edit_monitor(mid, name=name, interval=BACKUP_HEARTBEAT_INTERVAL)
-            print(f"  updated  {name}")
+        mid = upsert(api, existing, **check_keys(
+            type=MonitorType.PUSH, name=name,
+            interval=BACKUP_HEARTBEAT_INTERVAL, maxretries=0))
+        token = api.get_monitor(mid).get("pushToken")
+        if token:
+            push_tokens[host] = token
         else:
-            mid = api.add_monitor(type=MonitorType.PUSH, name=name,
-                                  interval=BACKUP_HEARTBEAT_INTERVAL, retries=0)["monitorID"]
-            print(f"  created  {name}")
-        push_tokens[host] = api.get_monitor(mid)["pushToken"]
+            print(f"  !! no pushToken returned for {name}; read it from the UI")
 
     print("\n" + "=" * 68)
     print("Backup heartbeat push URLs - give these to Claude to wire in, or run")
