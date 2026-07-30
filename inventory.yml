@@ -18,7 +18,7 @@ servers:
       - autostudio
       - openrevenue-bundle (convex, plunk, postiz, umami, workspace)
     paas: coolify
-    backed_up: false
+    backed_up: partial   # timer active + first snapshot verified; RESTORE DRILL STILL PENDING
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
       ssh: key-only (password auth off, verified with sshd -T)
@@ -42,7 +42,7 @@ servers:
       - steel
       - api-auth-app
     paas: none  # isolated, plain docker-compose, no PaaS by design
-    backed_up: false
+    backed_up: partial   # timer active + first snapshot verified; RESTORE DRILL STILL PENDING
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
       ssh: key-only (password auth off, verified with sshd -T)
@@ -68,7 +68,7 @@ servers:
       - "(future) clawexa"
       - "(future) QueueFlowAI"
     paas: dokploy
-    backed_up: false
+    backed_up: partial   # timer active + first snapshot verified; RESTORE DRILL STILL PENDING
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
       ssh: key-only (password auth off - this box had no cloud-init drop-in)
@@ -90,7 +90,7 @@ servers:
       - netdata-parent
       - restic-backup-coordination (optional, backups run locally per-server too)
     paas: none
-    backed_up: false
+    backed_up: partial   # timer active + first snapshot verified; RESTORE DRILL STILL PENDING
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
       ssh: key-only (password auth off, verified with sshd -T)
@@ -100,6 +100,60 @@ servers:
         Purchased and provisioned. Uptime Kuma was already running before this
         bootstrap; the idempotent path kept the existing container. Monitors for
         the other three hosts still need adding in the UI.
+
+  - hostname: spare-01
+    role: common-only
+    provider: contabo
+    plan: "Cloud VPS (6 vCPU / 11GB / 193GB)"
+    ip: 169.58.97.123
+    location: EU
+    apps: []
+    paas: none
+    backed_up: partial
+    observed_2026_07_30:
+      bootstrap_run: true      # common role only, verified
+      ssh: key-only (password auth off, verified with sshd -T)
+      tailscale: installed, NOT logged in
+      listening: []
+      note: >
+        Purpose not yet decided - hardened with the common role only. Named
+        'spare-01' provisionally. Renaming is safe ONLY until its backups matter:
+        backup.sh keys the restic repo path on $(hostname), so a later rename
+        starts a fresh history. It already has one snapshot, so a rename now
+        would orphan that (harmless - it holds nothing).
+
+# Backups - activated 2026-07-30
+backups:
+  status: >
+    restic timers enabled on all five hosts, daily 03:00 + up to 30min jitter.
+    One real snapshot taken and verified per host. Repo path is
+    <bucket>/<hostname>, so hostnames must stay stable.
+  covered:
+    - pg_dumpall / mysqldump of every running database container
+    - every named docker volume, tarred
+    - /etc/vps-infra, /opt/vps-infra, /opt/*/docker-compose.yml
+    - /data/coolify and /etc/dokploy (PaaS control plane) when present
+    - anything listed in /etc/vps-infra/backup-include.conf
+  NOT_covered:
+    - >
+      Docker Swarm secrets on meet-sso-misc (2 of them). Swarm secrets are
+      write-only by design - they cannot be read back out, so they must be
+      re-created from source material at restore time. Keep that source safe.
+    - >
+      The restic passphrase itself. It lives only in /etc/vps-infra/r2.env, which
+      IS inside the backup - but that copy is encrypted with the very passphrase
+      you would be trying to recover. It must exist off-server or every snapshot
+      is unreadable.
+  open_risks:
+    - >
+      R2_ACCESS_KEY_ID was printed into journald on neobank on 2026-07-30 when a
+      malformed r2.env caused bash to try executing it as a command. Rotate the
+      R2 token pair.
+    - >
+      RESTIC_PASSWORD is 10 characters. It is the only thing protecting every
+      backup at rest. Consider a longer one via 'restic key add' + 'key remove'
+      (changes the passphrase without re-encrypting the data).
+    - "No restore drill has been done. Until it has, treat backups as unproven."
 
 # Network constraint that shapes how all of the above is managed.
 network:
