@@ -30,12 +30,24 @@ All four have Bachir's SSH public key installed. Private key: `~/Desktop/vps-ssh
 Hetzner's was emailed after the rebuild. **Console access is the fallback and is not
 affected by the port-22 problem below** — `PasswordAuthentication no` only applies to sshd.
 
-## The port-22 blocker — diagnosed, currently bypassed by tethering
+## The port-22 blocker — RESOLVED via Tailscale
 
-**Status:** on Bachir's *home* network this is live. He is currently on an iPhone hotspot
-(gateway 172.20.10.1), where port 22 works, and everything below was done over direct SSH.
-Expect the block to return the moment he is back on home wifi. Tailscale is installed on
-all four hosts as the durable fix but is **not logged in yet**.
+**Status: solved.** Tailscale is logged in on main-host, neobank, meet-sso-misc and
+monitoring, and SSH over the tailnet is verified from the Mac — including MagicDNS, so
+`ssh root@main-host` just works regardless of which network Bachir is on. The home
+ISP block no longer gates anything.
+
+Tailnet: `tailfa2c11.ts.net`
+
+| Host | Tailnet IP |
+|---|---|
+| main-host | 100.77.25.32 |
+| neobank | 100.126.238.23 |
+| meet-sso-misc | 100.106.100.27 |
+| monitoring | 100.98.254.79 |
+| spare-01 | **not joined yet** — run `tailscale up --hostname=spare-01` |
+
+The underlying home-network block still exists and is described below for reference.
 
 Outbound from Bachir's Mac, on the home network:
 
@@ -56,8 +68,13 @@ Silence, macOS firewall) stays ruled out. It is the router/ISP.
 **Chosen workaround: Tailscale on every host.** SSH then runs over the tailnet instead of
 public port 22, which also gets SSH off the public internet entirely. Tailscale falls back
 to DERP relaying over 443 if UDP is blocked, so it works on that connection regardless.
-`common.sh` installs it and adds `ufw allow in on tailscale0`. **Still to do:** install
-Tailscale on the Mac, and run `tailscale up --hostname=<name>` on each of the four hosts.
+`common.sh` installs it and adds `ufw allow in on tailscale0`. Done on four of five hosts.
+
+**Important:** `ufw allow in on tailscale0` does NOT restrict published Docker ports.
+Docker inserts its own iptables rules ahead of ufw's chain, so a container published
+with `-p 3001:3001` is reachable from the internet whatever ufw says. To bind a
+container to the tailnet you must publish on the tailnet address itself
+(`-p <tailnet-ip>:3001:3001`), which is what `monitoring.sh` now does.
 
 ## What changed in the scripts this session
 

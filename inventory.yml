@@ -22,7 +22,7 @@ servers:
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
       ssh: key-only (password auth off, verified with sshd -T)
-      tailscale: installed, NOT logged in
+      tailscale: up, tailnet 100.77.25.32
       listening: [443 (traefik), 8000 (coolify ui), 6001, 6002]
       note: >
         Coolify was already installed before this bootstrap; the installer was
@@ -46,7 +46,7 @@ servers:
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
       ssh: key-only (password auth off, verified with sshd -T)
-      tailscale: installed, NOT logged in
+      tailscale: up, tailnet 100.126.238.23
       listening: []
       note: >
         Was the empty box, so it was bootstrapped first as the safe test target.
@@ -72,7 +72,7 @@ servers:
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
       ssh: key-only (password auth off - this box had no cloud-init drop-in)
-      tailscale: installed, NOT logged in
+      tailscale: up, tailnet 100.106.100.27
       listening: [443 (traefik), 3000 (dokploy ui)]
       note: >
         Dokploy was already installed; installer skipped. All 3 containers stayed
@@ -94,7 +94,7 @@ servers:
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
       ssh: key-only (password auth off, verified with sshd -T)
-      tailscale: installed, NOT logged in
+      tailscale: up, tailnet 100.98.254.79
       listening: [3001 (uptime-kuma)]
       note: >
         Purchased and provisioned. Uptime Kuma was already running before this
@@ -113,7 +113,7 @@ servers:
     observed_2026_07_30:
       bootstrap_run: true      # common role only, verified
       ssh: key-only (password auth off, verified with sshd -T)
-      tailscale: installed, NOT logged in
+      tailscale: PENDING - tailscale up not completed
       listening: []
       note: >
         Purpose not yet decided - hardened with the common role only. Named
@@ -202,6 +202,16 @@ network:
     is not server-side and not a sandbox artifact - it is the router/ISP applying a
     standard residential anti-abuse block on low ports. High ports are unaffected.
   workaround: tailscale on every host; SSH runs over the tailnet instead of public :22
+  RESOLVED_2026_07_30: >
+    Tailscale is logged in on main-host, neobank, meet-sso-misc and monitoring.
+    SSH over the tailnet is verified working from the Mac, including MagicDNS
+    (`ssh root@main-host`). The home-network port-22 block no longer gates access.
+    spare-01 has tailscaled running but is still logged out - finish it with
+    `tailscale up --hostname=spare-01` on that box.
+  tailnet: tailfa2c11.ts.net
+  stale_nodes: >
+    'vmi3045544' has been offline 67 days - leftover from a previously deleted
+    server. Remove it from the Tailscale admin console to keep the list honest.
   update_2026_07_28: >
     Bachir switched networks and port 22 now works, so all three servers were
     bootstrapped over direct SSH. The block above is a property of his HOME
