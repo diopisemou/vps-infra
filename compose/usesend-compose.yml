@@ -1,0 +1,60 @@
+# useSend — self-hosted email on AWS SES. Secrets: Infisical project `usesend` (prod), rendered into ./.env.
+# Service names are prefixed on purpose: the app also joins the shared coolify network, where plain
+# postgres/redis are aliases of Coolify's OWN control-plane DB and Redis.
+# Dashboard is behind basic auth at the proxy (useSend has no sign-up restriction); the app API and the
+# SES/SNS delivery callback stay open so apps and AWS can reach them.
+name: usesend
+services:
+  usesend-db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: usesend
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: usesend
+    volumes: [database:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U usesend"], interval: 10s, timeout: 5s, retries: 10 }
+    networks: [internal]
+  usesend-redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory-policy", "noeviction", "--appendonly", "yes"]
+    volumes: [cache:/data]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 10s, timeout: 5s, retries: 10 }
+    networks: [internal]
+  usesend:
+    image: usesend/usesend:v1.9.8
+    restart: unless-stopped
+    depends_on:
+      usesend-db: { condition: service_healthy }
+      usesend-redis: { condition: service_healthy }
+    env_file: .env
+    environment: { HOSTNAME: 0.0.0.0, PORT: "3000" }
+    networks: [internal, coolify]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.services.usesend.loadbalancer.server.port=3000
+      # open: the app API (apps send through it) and the SES→SNS delivery callback
+      - traefik.http.routers.usesend-public.rule=Host(`usesend.bidew.io`) && (PathPrefix(`/api/v1`) || PathPrefix(`/api/ses_callback`))
+      - traefik.http.routers.usesend-public.priority=100
+      - traefik.http.routers.usesend-public.entrypoints=https
+      - traefik.http.routers.usesend-public.tls=true
+      - traefik.http.routers.usesend-public.tls.certresolver=letsencrypt
+      - traefik.http.routers.usesend-public.service=usesend
+      # everything else (dashboard, login) behind basic auth
+      - traefik.http.middlewares.usesend-auth.basicauth.users=${BASIC_AUTH_USERS}
+      - traefik.http.routers.usesend.rule=Host(`usesend.bidew.io`)
+      - traefik.http.routers.usesend.entrypoints=https
+      - traefik.http.routers.usesend.tls=true
+      - traefik.http.routers.usesend.tls.certresolver=letsencrypt
+      - traefik.http.routers.usesend.middlewares=usesend-auth
+      - traefik.http.routers.usesend.service=usesend
+      - traefik.http.middlewares.usesend-https.redirectscheme.scheme=https
+      - traefik.http.routers.usesend-http.rule=Host(`usesend.bidew.io`)
+      - traefik.http.routers.usesend-http.entrypoints=http
+      - traefik.http.routers.usesend-http.middlewares=usesend-https
+volumes: { database: {}, cache: {} }
+networks:
+  internal: {}
+  coolify: { external: true }

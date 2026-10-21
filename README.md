@@ -22,7 +22,9 @@ See `inventory.yml` for the live list (IP, provider, role). As of today:
 | main-host | Contabo VPS8 | 169.58.77.127 | Coolify — alminhaaj, FlashRide, better-openclaw, EventFlowAI, autostudio, openrevenue bundle |
 | neobank | Contabo VPS6 | 169.58.79.167 | Kong, Hydra, Logto, Steel, api/auth (isolated, no PaaS) |
 | meet-sso-misc | Hetzner CPX32 | 2.28.13.102 | Dokploy — Keycloak (RHSSO for alminhaaj), Jitsi Meet, room for clawexa/QueueFlowAI |
-| monitoring | Contabo VPS4 | *(pending purchase)* | Uptime Kuma / Netdata parent, restic backup coordinator |
+| monitoring | Contabo VPS6 | 169.58.85.228 | Uptime Kuma / Netdata parent, restic backup coordinator |
+| spare-01 | Contabo VPS6 | 169.58.97.123 | Idle, hardened (common role); planned projects |
+| xaalis-prod | OVH VPS (CA) | 192.99.43.101 | Xaalis production: postgres + redis (app stack deployed from the xaalis repo) |
 
 ## How it works
 

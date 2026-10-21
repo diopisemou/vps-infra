@@ -9,7 +9,7 @@ if [[ -z "$TARGET" || -z "$URL" ]]; then
   echo "Usage: set-backup-heartbeat.sh <ssh-target> <push-url>" >&2
   exit 1
 fi
-KEY="${SSH_KEY:-$HOME/Desktop/vps-ssh-keys/bachir_vps_key}"
+KEY="${SSH_KEY:-$HOME/.ssh/bachir_vps_key}"
 
 ssh -i "$KEY" -o BatchMode=yes "$TARGET" "URL='$URL' bash -s" << 'EOS'
 set -euo pipefail

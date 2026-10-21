@@ -50,6 +50,7 @@ HOSTS = {
     "meet-sso-misc": ("2.28.13.102",   [("dokploy-ui", "http://2.28.13.102:3000")]),
     "monitoring":    ("169.58.85.228", []),
     "spare-01":      ("169.58.97.123", []),
+    "xaalis-prod":   ("192.99.43.101", []),
 }
 
 # Backups run daily with up to 30min jitter, so allow 25h before calling it down.

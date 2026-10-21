@@ -7,7 +7,7 @@ servers:
   - hostname: main-host
     role: main-host
     provider: contabo
-    plan: "Cloud VPS 8 (2026)"
+    plan: "Cloud VPS 8 (2026)"   # $16.80/mo
     ip: 169.58.77.127
     location: EU
     apps:
@@ -32,7 +32,7 @@ servers:
   - hostname: neobank
     role: neobank
     provider: contabo
-    plan: "Cloud VPS 6 (2026)"
+    plan: "Cloud VPS 6 (2026)"   # $9.00/mo
     ip: 169.58.79.167
     location: EU
     apps:
@@ -59,7 +59,7 @@ servers:
   - hostname: meet-sso-misc
     role: meet-sso-misc
     provider: hetzner
-    plan: CPX32 (4 vCPU / 8GB / 160GB)
+    plan: CPX31 (4 vCPU / 8GB / 160GB)   # ~$26/mo - no "CPX32" exists; see the billing note in the vault
     ip: 2.28.13.102
     location: Falkenstein
     apps:
@@ -82,7 +82,7 @@ servers:
   - hostname: monitoring
     role: monitoring
     provider: contabo
-    plan: "Cloud VPS 4"
+    plan: "Cloud VPS 6 (2026)"   # $9.00/mo
     ip: 169.58.85.228
     location: EU
     apps:
@@ -102,9 +102,10 @@ servers:
         the other three hosts still need adding in the UI.
 
   - hostname: spare-01
+    billing_alias: misc-openclaw-hermes   # the name Contabo bills it under - see reprobe note
     role: common-only
     provider: contabo
-    plan: "Cloud VPS (6 vCPU / 11GB / 193GB)"
+    plan: "Cloud VPS 6 (2026)"   # $9.00/mo
     ip: 169.58.97.123
     location: EU
     apps: []
@@ -121,6 +122,67 @@ servers:
         backup.sh keys the restic repo path on $(hostname), so a later rename
         starts a fresh history. It already has one snapshot, so a rename now
         would orphan that (harmless - it holds nothing).
+    reprobed_2026_08_28:
+      port_22: open
+      port_80: connection refused (nothing listening)
+      port_443: closed
+      still_idle: true
+      note: >
+        IMPORTANT - this box has two names. Contabo's billing ledger calls
+        169.58.97.123 "misc-openclaw-hermes"; this inventory calls it
+        "spare-01". Same machine, same $9.00/mo subscription. BID-19's
+        cancel/keep decision and BID-23's billing timeline were written about
+        it under different names and read as two separate boxes. They are one.
+        Re-probed 2026-08-28: still nothing serving, so the "idle" finding
+        that drives the cancel recommendation still holds.
+
+  - hostname: xaalis-prod
+    provider_name: vps-ba1d304a.vps.ovh.ca   # OVH's name for it; renamed 2026-10-02
+    role: common-only   # xaalis is deployed by its own repo (/opt/xaalis/deploy), not a role here
+    provider: ovh
+    plan: "OVH VPS, 2 vCPU / 4 GB / 40 GB"   # price/renewal go in the vault billing note, not here
+    ip: 192.99.43.101
+    ipv6: "2607:5300:205:200::ac45"
+    location: CA (vps.ovh.ca)
+    os: Ubuntu 26.04.1 LTS
+    login_user: ubuntu   # root and deploy also take the fleet key
+    apps:
+      - "xaalis (production) - postgres 17 (dbs: xaalis, formance_ledger, xaalis_ops) + redis 7 running;"
+      - "  api/worker/ledger/edge services defined in /opt/xaalis but not yet started as of 2026-10-02"
+    paas: none   # plain docker compose, project name xaalis-prod
+    backed_up: true      # timer active, snapshot verified, cross-host restore drill passed 2026-10-02
+    observed_2026_10_02:
+      bootstrap_run: partial   # see note - common.sh was NOT run wholesale
+      ssh: key-only (10-xaalis.conf drop-in; password auth off, verified with sshd -T)
+      tailscale: up, tailnet 100.80.21.91 (MagicDNS xaalis-prod)
+      firewall: ufw active - 22, 80, 443 + tailscale0; postgres/redis not published on the host
+      fail2ban: active
+      unattended_upgrades: enabled
+      listening: [22]
+      pending: >
+        reboot-required (libc6, kernel 7.0.0-34) and 10 held-back upgrades incl.
+        docker-compose-plugin. NOT applied: rebooting or upgrading Docker restarts
+        the production database. Do it in a chosen window.
+      note: >
+        Came pre-hardened by the xaalis deploy (ufw, fail2ban, unattended-upgrades,
+        key-only ssh). common.sh was deliberately not run as a whole because it
+        does apt-get upgrade -y, which would restart Docker and with it the
+        production postgres. Applied by hand instead: durable hostname
+        (set-hostname.sh), deploy user, /etc/vps-infra, restic timer.
+    backup:
+      extra_paths: >
+        /etc/vps-infra/backup-include.conf adds /opt/xaalis/.env.prod,
+        /opt/xaalis/.env.deploy, /opt/xaalis/deploy/state and
+        docker-compose.prod.yml. The DB dump is useless without the env files.
+      restore_drill_2026_10_02: >
+        Snapshot c206dcb7 restored on spare-01 with scripts/restore-drill.sh:
+        7/7 checks plus all three xaalis files present. pg_dumpall has 74
+        tables, equal to the live count (xaalis 53, formance_ledger 14,
+        xaalis_ops 7). Scratch copy deleted from spare-01 afterwards.
+      also: >
+        Xaalis ships its own backup job (deploy/backup.Dockerfile, age-encrypted to
+        R2 via BACKUP_R2_*); it is not running yet. The fleet restic backup is
+        independent of it, so neither depends on the other.
 
 # Backups - activated 2026-07-30
 backups:
@@ -153,6 +215,15 @@ backups:
       RESTIC_PASSWORD is 10 characters. It is the only thing protecting every
       backup at rest. Consider a longer one via 'restic key add' + 'key remove'
       (changes the passphrase without re-encrypting the data).
+  incident_2026_10_02: >
+    monitoring's restic-backup.service had failed every night since 2026-08-15: a
+    restic process died holding a lock, so `forget --prune` could never run.
+    Snapshots still landed (so it looked half-alive), but nothing was pruned and
+    the Kuma heartbeat, which only pings on success, never fired. Lock removed
+    with `restic unlock`; backup.sh now runs `restic unlock` (stale locks only)
+    every time, and prunes with --group-by host so a changed path list no longer
+    starts a retention group that never expires. monitoring went 60 -> 12
+    snapshots. Rolled out to all six hosts, sha256 ea94196ebfe0.
   restore_drill:
     date: 2026-07-30
     method: >
@@ -176,7 +247,14 @@ backups:
 # Monitoring - activated 2026-07-30
 monitoring_stack:
   uptime_kuma: "http://169.58.85.228:3001  (v1.23.17)"
-  monitors: 17 active, all UP
+  monitors: >
+    ping, ssh :22 and a backup push monitor for each of the six hosts, plus
+    main-host coolify-ui and meet-sso-misc dokploy-ui. xaalis-prod added
+    2026-10-21 by re-running kuma-provision.py.
+  heartbeats_wired_2026_10_21: >
+    All six hosts' UPTIME_KUMA_PUSH_URL re-set with set-backup-heartbeat.sh and
+    a test ping accepted on each. The same day all six had a successful nightly
+    backup (fleet-status.sh).
   per_host: [ping, ssh port 22, backup heartbeat (push)]
   extra: [main-host coolify-ui :8000, meet-sso-misc dokploy-ui :3000]
   backup_heartbeat: >
@@ -244,3 +322,12 @@ gotchas:
     raw.githubusercontent.com caches for 5 minutes (max-age=300). Pushing a fix
     and immediately re-running bootstrap will silently execute the OLD script.
     Check the content is live before trusting a run.
+
+# ---------------------------------------------------------------------------
+# THIS REPO IS PUBLIC (servers curl the bootstrap from raw.githubusercontent).
+# Billing records - account numbers, invoices, payment transactions, balances,
+# renewal dates, and the 2026-08-28 keep-every-server decision (BID-19) - live
+# in the PRIVATE Second Brain vault:
+#   40-sources/other/2026-08-24 Infrastructure billing (BID-19).md
+# Never add billing or account data to this file.
+# ---------------------------------------------------------------------------

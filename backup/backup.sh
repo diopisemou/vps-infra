@@ -56,6 +56,13 @@ done
 echo "-- init restic repo if needed --"
 restic snapshots >/dev/null 2>&1 || restic init
 
+# Clear locks left by a restic that died mid-run. Plain `unlock` only removes STALE
+# locks (owner process gone, or older than 30 min) - never one a live run holds.
+# Without this, one crashed run on monitoring (2026-08-15) blocked every
+# `forget --prune` for seven weeks: snapshots kept landing, nothing was pruned, the
+# unit failed nightly, and the heartbeat never pinged.
+restic unlock >/dev/null 2>&1 || true
+
 echo "-- assembling backup targets --"
 # An unmatched /opt/*/docker-compose.yml glob would be passed through literally and
 # make restic error out, failing the whole backup on a host that has no stacks yet.
@@ -93,7 +100,11 @@ restic backup \
   --host "$HOSTNAME_TAG" 2>&1
 
 echo "-- pruning: keep 7 daily, 4 weekly, 6 monthly --"
-restic forget --host "$HOSTNAME_TAG" \
+# --group-by host: restic's default groups by host AND path set, so every time a
+# path is added (a new /opt/*/docker-compose.yml, a backup-include line) a fresh
+# group starts and the old one keeps its 17 snapshots forever. monitoring had
+# three such groups by 2026-10-02.
+restic forget --host "$HOSTNAME_TAG" --group-by host \
   --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
 
 rm -rf "$STAGE"

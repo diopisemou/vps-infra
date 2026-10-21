@@ -3,7 +3,7 @@
 # Usage: scripts/fleet-status.sh
 set -uo pipefail
 
-KEY="${SSH_KEY:-$HOME/Desktop/vps-ssh-keys/bachir_vps_key}"
+KEY="${SSH_KEY:-$HOME/.ssh/bachir_vps_key}"
 
 HOSTS=(
   "main-host     169.58.77.127"
@@ -11,6 +11,7 @@ HOSTS=(
   "meet-sso-misc 2.28.13.102"
   "monitoring    169.58.85.228"
   "spare-01      169.58.97.123"
+  "xaalis-prod   192.99.43.101"
 )
 
 printf "%-14s %-6s %-16s %-6s %-5s %-22s %s\n" \
