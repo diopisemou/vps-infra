@@ -43,15 +43,16 @@ def check_keys(**kw):
 
 KUMA_URL = "http://169.58.85.228:3001"
 
-# hostname -> (ip, [extra http checks as (label, url)])
-HOSTS = {
-    "main-host":     ("169.58.77.127", [("coolify-ui", "http://169.58.77.127:8000")]),
-    "neobank":       ("169.58.79.167", []),
-    "meet-sso-misc": ("2.28.13.102",   [("dokploy-ui", "http://2.28.13.102:3000")]),
-    "monitoring":    ("169.58.85.228", []),
-    "spare-01":      ("169.58.97.123", []),
-    "xaalis-prod":   ("192.99.43.101", []),
+# Every server in inventory.yml gets ping + ssh + backup heartbeat. Extra HTTP
+# checks are listed by hostname here; the host list itself is not duplicated.
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+from hosts import hosts as _inventory_hosts  # noqa: E402
+
+EXTRA_HTTP = {
+    "main-host":     [("coolify-ui", "http://169.58.77.127:8000")],
+    "meet-sso-misc": [("dokploy-ui", "http://2.28.13.102:3000")],
 }
+HOSTS = {name: (ip, EXTRA_HTTP.get(name, [])) for name, ip in _inventory_hosts()}
 
 # Backups run daily with up to 30min jitter, so allow 25h before calling it down.
 BACKUP_HEARTBEAT_INTERVAL = 90000

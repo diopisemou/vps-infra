@@ -5,14 +5,9 @@ set -uo pipefail
 
 KEY="${SSH_KEY:-$HOME/.ssh/bachir_vps_key}"
 
-HOSTS=(
-  "main-host     169.58.77.127"
-  "neobank       169.58.79.167"
-  "meet-sso-misc 2.28.13.102"
-  "monitoring    169.58.85.228"
-  "spare-01      169.58.97.123"
-  "xaalis-prod   192.99.43.101"
-)
+# Host list comes from inventory.yml, the single source of truth.
+mapfile_compat() { HOSTS=(); while IFS= read -r l; do HOSTS+=("$l"); done; }
+mapfile_compat < <(python3 "$(dirname "$0")/hosts.py") || { echo "could not read inventory.yml" >&2; exit 1; }
 
 printf "%-14s %-6s %-16s %-6s %-5s %-22s %s\n" \
        HOST LOAD DISK MEM CTRS "LAST BACKUP" BACKUP-STATE

@@ -169,6 +169,18 @@ servers:
         does apt-get upgrade -y, which would restart Docker and with it the
         production postgres. Applied by hand instead: durable hostname
         (set-hostname.sh), deploy user, /etc/vps-infra, restic timer.
+    observed_2026_10_22:
+      running: >
+        full stack live - 14 containers (api, worker, web, docs, mcp, ledger, ops,
+        audit, alerts, probe, backup, postgres, redis, traefik as coolify-proxy).
+        Xaalis's own backup container is now running alongside the fleet restic.
+      disk: >
+        26G/38G (69%) after clearing 3.4G of unused Docker build cache. It had
+        reached 78%, growing ~5G/day, because the xaalis deploy builds images on
+        the box and keeps every rollback tag (about 20 xaalis-* tags, ~5.6G
+        reclaimable). Needs a retention rule in the xaalis deploy (keep the last
+        two rollback tags) or a bigger disk; the build cache alone refills.
+      pending: reboot still required (kernel); not done, production.
     backup:
       extra_paths: >
         /etc/vps-infra/backup-include.conf adds /opt/xaalis/.env.prod,
