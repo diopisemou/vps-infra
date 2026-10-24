@@ -119,7 +119,9 @@ servers:
     plan: "Cloud VPS 6 (2026)"   # $9.00/mo
     ip: 169.58.97.123
     location: EU
-    apps: []
+    apps:   # no longer a spare: see running_2026_10_24 below
+      - "Bidew Venture OS hub - bidew-hub (task queue + approvals API :7777, tailnet), postgres (pgvector), temporal + ui, mem0, n8n"
+      - "content stack - cct-content-core, cct-n8n, cct-ollama, cct-postgres, cct-searxng, cct-sandbox-api + runner"
     paas: none
     backed_up: partial
     observed_2026_07_30:
