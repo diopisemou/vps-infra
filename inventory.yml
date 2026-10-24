@@ -17,7 +17,9 @@ servers:
       - EventFlowAI
       - autostudio
       - openrevenue-bundle (convex, plunk, postiz, umami, workspace)
+      - bidew.io (BidewTech repo, coolify app bidew-io + postgres bidewtech-db, added 2026-10-24)
     paas: coolify
+    coolify_fqdn: https://coolify.bidew.io   # instance domain set 2026-10-24; API token on host at /root/.coolify-token
     backed_up: true      # timer active, snapshot verified, restore drill passed 2026-07-30
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
