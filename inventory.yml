@@ -20,7 +20,8 @@ servers:
       - bidew.io (BidewTech repo, coolify app bidew-io + postgres bidewtech-db, added 2026-10-24)
       - usesend.bidew.io (useSend, coolify compose service 'usesend' since 2026-10-24; replaced the hand-run
         /opt/usesend compose, kept as /opt/usesend.old-compose-2026-10-24. Dashboard behind Traefik basic auth,
-        /api/v1 + /api/ses_callback open. Still needs GITHUB_ID/GITHUB_SECRET and AWS SES keys in its env.)
+        /api/v1 + /api/ses_callback open. GitHub OAuth app + AWS IAM user 'usesend-bidew' (SES+SNS, region
+        us-east-1, the account's production SES region) set in its Coolify env on 2026-10-24.)
       - dokploy.bidew.io (Traefik file route /data/coolify/proxy/dynamic/dokploy-bidew-io.yaml ->
         meet-sso-misc Dokploy UI over the tailnet 100.106.100.27:3000; *.bidew.io wildcard points here)
     paas: coolify
