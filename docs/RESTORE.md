@@ -33,10 +33,10 @@ data back.
 6. From `/var/backups/restore-test`, you'll find:
    - `dumps/*.sql` — database dumps, restore with `psql < file.sql` or `mysql < file.sql`
      into the freshly-started DB containers from the role's docker-compose.
-   - `volumes/*.tar.gz` — one per docker named volume, restore with:
+   - `volumes/*.tar` (`*.tar.gz` in snapshots before 2026-10-24) — one per docker named volume, restore with:
      ```
      docker run --rm -v <volume-name>:/to -v /var/backups/restore-test/volumes:/from \
-       alpine sh -c "cd /to && tar xzf /from/<volume-name>.tar.gz"
+       alpine sh -c "cd /to && tar xf /from/<volume-name>.tar"
      ```
    - `opt/*/docker-compose.yml` — the exact compose files that were running; diff
      against what bootstrap installed and reconcile any drift.

@@ -80,17 +80,18 @@ else
 fi
 
 echo "-- 5. docker volume archives --"
-vols=("$TARGET"/var/backups/vps-infra-stage/volumes/*.tar.gz)
+# .tar since 2026-10-24 (uncompressed, so restic can de-duplicate); older snapshots hold .tar.gz.
+vols=("$TARGET"/var/backups/vps-infra-stage/volumes/*.tar "$TARGET"/var/backups/vps-infra-stage/volumes/*.tar.gz)
 if (( ${#vols[@]} == 0 )); then
   info "no volume archives in this snapshot"
 else
   for v in "${vols[@]}"; do
     n=$(basename "$v")
-    if gzip -t "$v" 2>/dev/null; then
-      c=$(tar tzf "$v" 2>/dev/null | wc -l | tr -d ' ')
-      (( c > 0 )) && ok "$n: gzip valid, $c entries" || bad "$n: gzip valid but EMPTY"
+    if [[ "$v" == *.gz ]] && ! gzip -t "$v" 2>/dev/null; then bad "$n: corrupt gzip"; continue; fi
+    if c=$(tar tf "$v" 2>/dev/null | wc -l | tr -d ' ') && (( c > 0 )); then
+      ok "$n: archive valid, $c entries"
     else
-      bad "$n: corrupt gzip"
+      bad "$n: unreadable or EMPTY archive"
     fi
   done
 fi

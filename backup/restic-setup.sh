@@ -23,6 +23,17 @@ else
   chmod 0755 /opt/vps-infra/backup.sh
 fi
 
+# Pre-backup hooks (consistent SQLite copies, ...). backup.sh runs every /etc/vps-infra/pre-backup.d/*.sh.
+mkdir -p /etc/vps-infra/pre-backup.d
+for hook in sqlite-snapshots.sh; do
+  if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/pre-backup.d/$hook" ]]; then
+    install -m 0755 "$SCRIPT_DIR/pre-backup.d/$hook" "/etc/vps-infra/pre-backup.d/$hook"
+  else
+    curl -fsSL "$REPO_RAW_BASE/backup/pre-backup.d/$hook" -o "/etc/vps-infra/pre-backup.d/$hook" \
+      && chmod 0755 "/etc/vps-infra/pre-backup.d/$hook"
+  fi
+done
+
 if [[ ! -f /etc/vps-infra/backup.env ]]; then
   cat > /etc/vps-infra/backup.env << 'EOF'
 # systemd OnCalendar syntax. Examples:
