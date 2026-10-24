@@ -76,6 +76,8 @@ servers:
       ssh: key-only (password auth off - this box had no cloud-init drop-in)
       tailscale: up, tailnet 100.106.100.27
       listening: [443 (traefik), 3000 (dokploy ui)]
+      firewall: 3000 is TAILNET-ONLY since 2026-10-24 (scripts/firewall/tailnet-only-ports.sh via systemd
+        tailnet-only-ports.service; DOCKER-USER drop on eth0). Dokploy UI = http://100.106.100.27:3000
       note: >
         Dokploy was already installed; installer skipped. All 3 containers stayed
         up through the ufw change. 3000 is held open explicitly. Keycloak/Jitsi

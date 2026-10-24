@@ -50,7 +50,7 @@ from hosts import hosts as _inventory_hosts  # noqa: E402
 
 EXTRA_HTTP = {
     "main-host":     [("coolify-ui", "http://169.58.77.127:8000")],
-    "meet-sso-misc": [("dokploy-ui", "http://2.28.13.102:3000")],
+    "meet-sso-misc": [("dokploy-ui", "http://100.106.100.27:3000")],  # tailnet-only since 2026-10-24 (scripts/firewall)
 }
 HOSTS = {name: (ip, EXTRA_HTTP.get(name, [])) for name, ip in _inventory_hosts()}
 

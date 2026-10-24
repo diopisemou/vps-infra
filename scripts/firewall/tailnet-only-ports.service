@@ -1,0 +1,13 @@
+[Unit]
+Description=Admin ports reachable only over Tailscale (DOCKER-USER drop on the public NIC)
+After=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=-/etc/vps-infra/tailnet-only-ports.env
+ExecStart=/usr/local/sbin/tailnet-only-ports.sh
+
+[Install]
+WantedBy=docker.service
