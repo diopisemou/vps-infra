@@ -207,6 +207,45 @@ servers:
         R2 via BACKUP_R2_*); it is not running yet. The fleet restic backup is
         independent of it, so neither depends on the other.
 
+
+# What is actually running, from `docker ps` on every host on 2026-10-24. The per-host
+# `apps:` lists above are the PLAN and lag behind; when they disagree, this is what is true.
+running_2026_10_24:
+  main-host: >
+    Coolify control plane; alminhaaj and the other Coolify apps; bidew.io (app + postgres
+    bidewtech-db); useSend (usesend + usesend-db + usesend-redis); ridesentinel (api, web,
+    tesla-proxy); boc (web, api, postgres); clawexa-mysql + clawexa-redis.
+  neobank: >
+    coolify-proxy and coolify-sentinel only. kong/hydra/logto/steel are planned, not running.
+  meet-sso-misc: >
+    Dokploy (+ its postgres and traefik); al-minhaaj-meet-keycloak (keycloak, its postgres,
+    backend, frontend, celery, livekit); al-minhaaj-hadith-api (api, postgres, neo4j).
+  monitoring: >
+    uptime-kuma; Coolify proxy + sentinel; and the full XAALIS SANDBOX stack (api, worker, web,
+    ledger, ops, audit, alerts, canary, whatsapp, demo-shop, backup, postgres, redis). The
+    sandbox builds its images on this box - that is what grew build cache 33 GB in two days.
+  spare-01: >
+    NOT idle: the Bidew Venture OS hub (bidew-hub, postgres, temporal + ui, mem0, n8n) and a
+    content stack (cct-content-core, cct-n8n, cct-ollama, cct-postgres, cct-searxng,
+    cct-sandbox-api + runner).
+  xaalis-prod: >
+    Full Xaalis production: api, worker, web, docs, mcp, ledger, ops, audit, alerts, probe,
+    backup, postgres, redis, behind coolify-proxy (traefik).
+
+# Maintenance timers (2026-10-24). scripts/maintenance/docker-cache-prune.sh installs a daily
+# `docker builder prune --filter until=24h` on every host. Build cache is only a build speed-up,
+# never needed to run anything; it had grown 5-15 GB/day on the hosts that build on-box.
+# Images are deliberately NOT pruned: xaalis keeps rollback tags on purpose (~5.6 GB on prod).
+maintenance:
+  docker_cache_prune: daily 04:30 + jitter, all six hosts, until=24h
+  os_updates: >
+    unattended-upgrades applies security updates everywhere (0 security updates pending on
+    2026-10-24). ~49 non-security updates wait per host, and meet-sso-misc and xaalis-prod
+    need a reboot - both run production, so pick a window.
+  benign_failed_units: >
+    systemd-networkd-wait-online (Contabo hosts) and cloud-init-hotplugd (meet-sso-misc) show
+    as failed at boot. Cosmetic: networking is up. Do not chase them.
+
 # Backups - activated 2026-07-30
 backups:
   status: >

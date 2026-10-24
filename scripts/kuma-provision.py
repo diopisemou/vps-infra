@@ -49,7 +49,11 @@ sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
 from hosts import hosts as _inventory_hosts  # noqa: E402
 
 EXTRA_HTTP = {
-    "main-host":     [("coolify-ui", "http://169.58.77.127:8000")],
+    "main-host":     [("coolify-ui", "http://169.58.77.127:8000"),
+                      # useSend: the SES delivery callback must answer, or bounces/deliveries
+                      # are never recorded. It returns 200 to a GET without auth.
+                      ("usesend", "https://usesend.bidew.io/api/ses_callback"),
+                      ("bidew-io", "https://bidew.io")],
     "meet-sso-misc": [("dokploy-ui", "http://100.106.100.27:3000")],  # tailnet-only since 2026-10-24 (scripts/firewall)
 }
 HOSTS = {name: (ip, EXTRA_HTTP.get(name, [])) for name, ip in _inventory_hosts()}

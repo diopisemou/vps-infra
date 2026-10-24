@@ -1,3 +1,7 @@
+# RETIRED 2026-10-24. useSend now runs as the Coolify compose service `usesend` on main-host,
+# with its env (GitHub OAuth, IAM user usesend-bidew, SES us-east-1) in Coolify. This file is the
+# hand-run stack it replaced (/opt/usesend.old-compose-2026-10-24), kept for reference and as a
+# fallback. Edit useSend in Coolify, not here.
 # useSend — self-hosted email on AWS SES. Secrets: Infisical project `usesend` (prod), rendered into ./.env.
 # Service names are prefixed on purpose: the app also joins the shared coolify network, where plain
 # postgres/redis are aliases of Coolify's OWN control-plane DB and Redis.
