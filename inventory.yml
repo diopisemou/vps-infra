@@ -18,6 +18,11 @@ servers:
       - autostudio
       - openrevenue-bundle (convex, plunk, postiz, umami, workspace)
       - bidew.io (BidewTech repo, coolify app bidew-io + postgres bidewtech-db, added 2026-10-24)
+      - usesend.bidew.io (useSend, coolify compose service 'usesend' since 2026-10-24; replaced the hand-run
+        /opt/usesend compose, kept as /opt/usesend.old-compose-2026-10-24. Dashboard behind Traefik basic auth,
+        /api/v1 + /api/ses_callback open. Still needs GITHUB_ID/GITHUB_SECRET and AWS SES keys in its env.)
+      - dokploy.bidew.io (Traefik file route /data/coolify/proxy/dynamic/dokploy-bidew-io.yaml ->
+        meet-sso-misc Dokploy UI over the tailnet 100.106.100.27:3000; *.bidew.io wildcard points here)
     paas: coolify
     coolify_fqdn: https://coolify.bidew.io   # instance domain set 2026-10-24; API token on host at /root/.coolify-token
     backed_up: true      # timer active, snapshot verified, restore drill passed 2026-07-30
@@ -70,6 +75,7 @@ servers:
       - "(future) clawexa"
       - "(future) QueueFlowAI"
     paas: dokploy
+    dokploy_ui: https://dokploy.bidew.io   # served via main-host Traefik over the tailnet; :3000 still open publicly
     backed_up: true      # timer active, snapshot verified, restore drill passed 2026-07-30
     observed_2026_07_28:
       bootstrap_run: true      # fixed bootstrap applied 2026-07-28, verified
