@@ -8,7 +8,7 @@ transmits it anywhere except to your own Kuma instance.
     pip3 install uptime-kuma-api
     python3 scripts/kuma-provision.py
 
-Prerequisite: create the admin account first at http://169.58.85.228:3001/setup
+Prerequisite: create the admin account first at http://100.98.254.79:3001/setup (tailnet)
 
 Idempotent: monitors are matched by name, so re-running updates rather than
 duplicating. At the end it prints the push URLs for the backup heartbeat monitors -
@@ -41,7 +41,7 @@ def check_keys(**kw):
         )
     return kw
 
-KUMA_URL = "http://169.58.85.228:3001"
+KUMA_URL = "http://100.98.254.79:3001"  # tailnet-only since 2026-10-28
 
 # Every server in inventory.yml gets ping + ssh + backup heartbeat. Extra HTTP
 # checks are listed by hostname here; the host list itself is not duplicated.

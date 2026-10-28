@@ -108,6 +108,10 @@ servers:
       ssh: key-only (password auth off, verified with sshd -T)
       tailscale: up, tailnet 100.98.254.79
       listening: [3001 (uptime-kuma)]
+      tailnet_only_2026_10_28: >
+        3001 (Kuma) and 8080 (Coolify proxy) dropped on eth0 by tailnet-only-ports.service;
+        ufw 3001 rule removed; sshd drop-in installed; Tailscale 1.104.4 + auto-update.
+        Public surface now 22/80/443 only.
       note: >
         Purchased and provisioned. Uptime Kuma was already running before this
         bootstrap; the idempotent path kept the existing container. Monitors for
@@ -329,7 +333,7 @@ backups:
 
 # Monitoring - activated 2026-07-30
 monitoring_stack:
-  uptime_kuma: "http://169.58.85.228:3001  (v1.23.17)"
+  uptime_kuma: "http://100.98.254.79:3001  (v1.23.17, tailnet-only since 2026-10-28)"
   monitors: >
     ping, ssh :22 and a backup push monitor for each of the six hosts, plus
     main-host coolify-ui and meet-sso-misc dokploy-ui. xaalis-prod added
@@ -346,12 +350,14 @@ monitoring_stack:
     silently. Verified end to end: all five hosts ran a real backup and Kuma
     recorded OK.
   provision: scripts/kuma-provision.py (idempotent, matched by monitor name)
+  resolved_2026_10_28: >
+    Kuma used to be served over PLAIN HTTP on a public port. It is now tailnet-only
+    (DOCKER-USER drop on eth0), and all six hosts' push URLs were rewritten to
+    100.98.254.79 with a test ping accepted on each (backup.env.bak-tailnet-kuma kept).
   open_risks:
     - >
-      Kuma is served over PLAIN HTTP on a public port. The admin password and the
-      push tokens cross the internet in cleartext, and meet-sso-misc pings it from
-      Hetzner to Contabo. Put it behind TLS, or restrict 3001 to the tailnet once
-      Tailscale is logged in, and rotate the Kuma password afterwards.
+      The Kuma admin password and the push tokens crossed the internet in cleartext
+      before 2026-10-28. Rotate the Kuma password (Owner).
 
 # Network constraint that shapes how all of the above is managed.
 network:

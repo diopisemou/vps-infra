@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Wire an Uptime Kuma push URL into a host's backup.env, so backup.sh reports success.
 # Usage (run from your machine):  set-backup-heartbeat.sh <ssh-target> <push-url>
-# e.g.  set-backup-heartbeat.sh root@169.58.77.127 http://169.58.85.228:3001/api/push/AbC123
+# e.g.  set-backup-heartbeat.sh root@169.58.77.127 http://100.98.254.79:3001/api/push/AbC123  (Kuma is tailnet-only)
 set -euo pipefail
 
 TARGET="${1:-}"; URL="${2:-}"
