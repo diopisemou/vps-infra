@@ -249,6 +249,24 @@ maintenance:
     systemd-networkd-wait-online (Contabo hosts) and cloud-init-hotplugd (meet-sso-misc) show
     as failed at boot. Cosmetic: networking is up. Do not chase them.
 
+# Advisory check, 2026-10-28.
+security_review_2026_10_28:
+  php2shell: >
+    CVE-2026-109618 / CVE-2026-109619 (unauthenticated RCE in PHP serving web requests, exploited
+    since 2026-10-21; fixed in 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35). The only PHP in the fleet is
+    Coolify's own container on main-host, at 8.4.27 (patched; Coolify self-updates nightly). No
+    public site answers with PHP or WordPress signatures. Not exposed.
+  tailscale: >
+    TS-2026-013 (eMudhra intermediates, fixed 1.104.2) already covered. TS-2026-014..017 (SSH
+    forwarding, SSH memory DoS, Serve Unix backends, Serve multi-mount headers; fixed 1.104.4):
+    Tailscale SSH is off on every node; Serve is tailnet-only, no Funnel, single TCP backend on
+    main-host, neobank and xaalis-prod. Upgraded all reachable servers 1.104.2 -> 1.104.4 anyway.
+    monitoring was offline at the time and still needs it.
+  exposure: >
+    Public ports measured from spare-01: main-host 22/80/443 only - Coolify 8000/6001/6002 are
+    dropped on eth0 by tailnet-only-ports.service. No pending security updates, key-only SSH,
+    fail2ban and unattended-upgrades active on all five reachable hosts.
+
 # Backups - activated 2026-07-30
 backups:
   status: >
