@@ -112,6 +112,11 @@ servers:
         3001 (Kuma) and 8080 (Coolify proxy) dropped on eth0 by tailnet-only-ports.service;
         ufw 3001 rule removed; sshd drop-in installed; Tailscale 1.104.4 + auto-update.
         Public surface now 22/80/443 only.
+      outage_2026_10_28: >
+        Hard stop at 11:04 CET (no clean shutdown logged), booted again 17:05 CET.
+        After boot: all containers up, Kuma healthy, restic timer active (last
+        snapshot 03:26 the same morning), brain-sync pushing, external probe from
+        spare-01 shows only 22/80/443. No security updates pending.
       note: >
         Purchased and provisioned. Uptime Kuma was already running before this
         bootstrap; the idempotent path kept the existing container. Monitors for
