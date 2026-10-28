@@ -32,6 +32,7 @@ servers:
       ssh: key-only (password auth off, verified with sshd -T)
       tailscale: up, tailnet 100.77.25.32
       listening: [443 (traefik), 8000 (coolify ui), 6001, 6002]
+      firewall: 8000/6001/6002 TAILNET-ONLY since 2026-10-28 (scripts/firewall/tailnet-only-ports.sh). Coolify UI = http://100.77.25.32:8000
       note: >
         Coolify was already installed before this bootstrap; the installer was
         skipped. All 6 coolify containers stayed healthy through the ufw change.
