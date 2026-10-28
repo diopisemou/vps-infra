@@ -25,7 +25,7 @@ independent backups to Cloudflare R2, decoupled from any single VPS provider. Se
 > fact already been run on both. Anything reconfiguring those boxes must preserve the PaaS
 > admin ports.
 
-All four have Bachir's SSH public key installed. Private key: `~/Desktop/vps-ssh-keys/bachir_vps_key`
+All four have Bachir's SSH public key installed. Private key: `~/.ssh/bachir_vps_key`
 (never commit). Both Contabo boxes also have a root password set for VNC console access;
 Hetzner's was emailed after the rebuild. **Console access is the fallback and is not
 affected by the port-22 problem below** — `PasswordAuthentication no` only applies to sshd.
